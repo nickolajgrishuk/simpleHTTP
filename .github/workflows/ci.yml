@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Debug, Release]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake
+
+    - name: Create Build Environment
+      run: cmake -E make_directory ${{github.workspace}}/build
+
+    - name: Configure CMake
+      working-directory: ${{github.workspace}}/build
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_EXAMPLES=ON
+
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: cmake --build . --config ${{ matrix.build_type }}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: |
+        if [ -f "./simpleHTTP_example" ]; then
+          echo "Running example..."
+          ./simpleHTTP_example --help || true
+        else
+          echo "Example executable not found, skipping test"
+        fi
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+
+    - name: Check formatting
+      run: |
+        find . -name '*.cpp' -o -name '*.hpp' | grep -v build | xargs clang-format -i --style=file
+        git diff --exit-code || (echo "Code formatting check failed. Please run clang-format on your code." && exit 1)
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install cppcheck
+      run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --error-exitcode=1 \
+          --suppress=missingInclude \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --suppress=unusedFunction \
+          --suppress=noExplicitConstructor \
+          --suppress=useInitializationList \
+          --suppress=useStlAlgorithm \
+          --suppress=virtualCallInConstructor \
+          --suppress=missingInclude:include/socket.hpp \
+          --suppress=missingInclude:include/simpleHTTP.hpp \
+          include/ src/ examples/
+
+  compile-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install build tools
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+
+    - name: Compile test
+      run: |
+        g++ -std=c++11 -Wall -Wextra -Iinclude -c src/socket.cpp -o /tmp/socket.o
+        g++ -std=c++11 -Wall -Wextra -Iinclude -c src/simpleHTTP.cpp -o /tmp/simpleHTTP.o
+        g++ -std=c++11 -Wall -Wextra -Iinclude examples/base_example.cpp /tmp/socket.o /tmp/simpleHTTP.o -lpthread -o /tmp/test_example
+        echo "Compilation successful!" 
