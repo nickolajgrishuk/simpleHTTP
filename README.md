@@ -44,7 +44,7 @@ using namespace SimpleHTTP;
 int main() {
     HttpClient client;
     
-    // Простой GET запрос
+    // GET request
     HttpResponse response = client.Get("http://httpbin.org/get");
     
     std::cout << "HTTP Code: " << response.httpCode << std::endl;
@@ -95,7 +95,7 @@ thread->join();
 
 The main class for making HTTP requests.
 
-#### Конструкторы
+#### Constructor
 - `HttpClient()` - create a new HTTP client
 
 #### Methods
