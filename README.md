@@ -130,7 +130,7 @@ Structure containing information about the HTTP response.
 - `std::string protocol` - protocol
 
 
-### Примеры
+### Examples
 
 Complete usage examples are located in the `examples/` folder.
 
