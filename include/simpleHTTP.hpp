@@ -1,23 +1,24 @@
 #pragma once
 
-#include <string>
-#include <map>
-#include <vector>
-#include <memory>
 #include <pthread.h>
-#include <functional>
-#include "socket.hpp"
-#include <sstream>
+
 #include <algorithm>
-#include <regex>
-#include <functional>
 #include <cstring>
+#include <functional>
+#include <map>
+#include <memory>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "socket.hpp"
 
 namespace SimpleHTTP {
 
 struct HttpHeaders {
     std::map<std::string, std::string> headers;
-    
+
     void addHeader(const std::string& key, const std::string& value);
     std::string getHeader(const std::string& key) const;
     std::string toString() const;
@@ -34,7 +35,7 @@ struct HttpResponse {
     HttpHeaders headers;
     std::string statusText;
     std::string protocol;
-    
+
     HttpResponse();
     void clear();
 };
@@ -45,7 +46,7 @@ struct UrlInfo {
     int port;
     std::string path;
     std::string query;
-    
+
     UrlInfo();
     static UrlInfo parseUrl(const std::string& url);
 };
@@ -58,21 +59,21 @@ class HttpClient {
     class ThreadGuard {
         pthread_t threadId;
         bool isJoined;
-        
+
     public:
-        explicit ThreadGuard(const pthread_t &id);
+        explicit ThreadGuard(const pthread_t& id);
         ~ThreadGuard();
 
         ThreadGuard(const ThreadGuard&) = delete;
         ThreadGuard& operator=(const ThreadGuard&) = delete;
 
-        ThreadGuard(ThreadGuard &&other) noexcept;
-        ThreadGuard& operator=(ThreadGuard &&other) noexcept;
-        
+        ThreadGuard(ThreadGuard&& other) noexcept;
+        ThreadGuard& operator=(ThreadGuard&& other) noexcept;
+
         void join();
         void detach();
     };
-    
+
 public:
     HttpClient();
     ~HttpClient();
@@ -80,54 +81,46 @@ public:
     HttpClient(const HttpClient&) = delete;
     HttpClient& operator=(const HttpClient&) = delete;
 
-    HttpClient(HttpClient &&other) noexcept;
-    HttpClient& operator=(HttpClient &&other) noexcept;
+    HttpClient(HttpClient&& other) noexcept;
+    HttpClient& operator=(HttpClient&& other) noexcept;
 
-    HttpResponse Get(const std::string &url,
-                     const HttpHeaders &headers = HttpHeaders());
-    
-    HttpResponse Post(const std::string &url,
-                      const std::string &payload = "",
-                      const std::string &contentType = "",
-                      const HttpHeaders &headers = HttpHeaders());
-    
-    HttpResponse Put(const std::string &url,
-                     const std::string &payload = "",
-                     const std::string &contentType = "",
-                     const HttpHeaders &headers = HttpHeaders());
+    HttpResponse Get(const std::string& url, const HttpHeaders& headers = HttpHeaders());
 
-    HttpResponse Delete(const std::string &url,
-                              const std::string &payload = "",
-                              const std::string &contentType = "",
-                              const HttpHeaders &headers = HttpHeaders());
+    HttpResponse Post(const std::string& url, const std::string& payload = "",
+                      const std::string& contentType = "",
+                      const HttpHeaders& headers = HttpHeaders());
 
-    void setTimeout(const int &seconds);
-    void setUserAgent(const std::string &agent);
+    HttpResponse Put(const std::string& url, const std::string& payload = "",
+                     const std::string& contentType = "",
+                     const HttpHeaders& headers = HttpHeaders());
 
-    std::unique_ptr<ThreadGuard> getAsync(const std::string &url,
-                                         const HttpHeaders &headers = HttpHeaders(),
-                                         const std::function<void(HttpResponse)> &callback = nullptr);
-    
-    std::unique_ptr<ThreadGuard> postAsync(const std::string &url,
-                                          const std::string &payload = "",
-                                          const std::string &contentType = "",
-                                          const HttpHeaders &headers = HttpHeaders(),
-                                          const std::function<void(HttpResponse)> &callback = nullptr);
+    HttpResponse Delete(const std::string& url, const std::string& payload = "",
+                        const std::string& contentType = "",
+                        const HttpHeaders& headers = HttpHeaders());
 
-    HttpResponse executeRequest(const std::string &method,
-                               const std::string &url,
-                               const std::string &payload = "",
-                               const std::string &contentType = "",
-                               const HttpHeaders &headers = HttpHeaders());
-    
+    void setTimeout(const int& seconds);
+    void setUserAgent(const std::string& agent);
+
+    std::unique_ptr<ThreadGuard> getAsync(
+        const std::string& url, const HttpHeaders& headers = HttpHeaders(),
+        const std::function<void(HttpResponse)>& callback = nullptr);
+
+    std::unique_ptr<ThreadGuard> postAsync(
+        const std::string& url, const std::string& payload = "",
+        const std::string& contentType = "", const HttpHeaders& headers = HttpHeaders(),
+        const std::function<void(HttpResponse)>& callback = nullptr);
+
+    HttpResponse executeRequest(const std::string& method, const std::string& url,
+                                const std::string& payload = "",
+                                const std::string& contentType = "",
+                                const HttpHeaders& headers = HttpHeaders());
+
 private:
-    std::string buildHttpRequest(const std::string &method,
-                                const UrlInfo &urlInfo,
-                                const std::string &payload,
-                                const std::string &contentType,
-                                const HttpHeaders &headers) const;
-    
-    static HttpResponse parseHttpResponse(const std::string &rawResponse);
+    std::string buildHttpRequest(const std::string& method, const UrlInfo& urlInfo,
+                                 const std::string& payload, const std::string& contentType,
+                                 const HttpHeaders& headers) const;
+
+    static HttpResponse parseHttpResponse(const std::string& rawResponse);
 };
 
-}
+}  // namespace SimpleHTTP
