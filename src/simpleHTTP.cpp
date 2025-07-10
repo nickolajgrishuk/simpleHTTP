@@ -252,6 +252,28 @@ std::string HttpClient::buildHttpRequest(const std::string& method, const UrlInf
     return request.str();
 }
 
+// Декодирование chunked-ответа
+static std::string decodeChunkedBody(const std::string& chunked) {
+    std::istringstream stream(chunked);
+    std::string decoded;
+    while (true) {
+        std::string line;
+        if (!std::getline(stream, line)) break;
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty()) continue;
+        size_t chunkSize = 0;
+        std::istringstream(line) >> std::hex >> chunkSize;
+        if (chunkSize == 0) break;
+        std::string chunk(chunkSize, '\0');
+        stream.read(&chunk[0], chunkSize);
+        decoded += chunk;
+        // Пропустить \r\n после чанка
+        stream.get(); // \r
+        stream.get(); // \n
+    }
+    return decoded;
+}
+
 HttpResponse HttpClient::parseHttpResponse(const std::string& rawResponse) {
     HttpResponse response;
 
@@ -286,6 +308,8 @@ HttpResponse HttpClient::parseHttpResponse(const std::string& rawResponse) {
     }
 
     std::string headerLine;
+    bool isChunked = false;
+    size_t contentLength = 0;
     while (std::getline(headerStream, headerLine)) {
         if (headerLine.empty() || headerLine == "\r")
             break;
@@ -305,13 +329,26 @@ HttpResponse HttpClient::parseHttpResponse(const std::string& rawResponse) {
 
             if (key == "Content-Length") {
                 try {
-                    response.contentLength = std::stoul(value);
+                    contentLength = std::stoul(value);
+                    response.contentLength = contentLength;
                 } catch (...) {
                     response.contentLength = 0;
                 }
             }
+            if (key == "Transfer-Encoding" && value.find("chunked") != std::string::npos) {
+                isChunked = true;
+            }
         }
     }
+
+    // Обработка тела ответа
+    if (isChunked) {
+        response.body = decodeChunkedBody(response.body);
+        response.contentLength = response.body.size();
+    } else if (contentLength > 0 && response.body.size() > contentLength) {
+        response.body = response.body.substr(0, contentLength);
+    }
+    // Если нет Content-Length и не chunked, просто возвращаем всё, что есть
 
     return response;
 }
