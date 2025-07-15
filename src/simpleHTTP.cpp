@@ -179,7 +179,7 @@ bool HttpClient::Download(const std::string& url, std::function<bool(const char*
         }
 
         while (true) {
-            std::string chunk = socket->receiveChunk();
+            std::string chunk = socket->receiveChunk(8192);
             if (chunk.empty()) break;
             if (!onChunk(chunk.data(), chunk.size())) return false;
         }
