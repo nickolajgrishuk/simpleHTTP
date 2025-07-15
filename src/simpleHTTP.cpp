@@ -170,12 +170,14 @@ bool HttpClient::Download(const std::string& url, std::function<bool(const char*
             std::string chunk = socket->receiveChunk(1);
             if (chunk.empty()) return false;
             headersStr += chunk;
-            if (headersStr.find("\r\n\r\n") != std::string::npos) break;
-        }
-        size_t bodyStart = headersStr.find("\r\n\r\n") + 4;
-
-        if (bodyStart < headersStr.size()) {
-            if (!onChunk(headersStr.data() + bodyStart, headersStr.size() - bodyStart)) return false;
+            size_t pos = headersStr.find("\r\n\r\n");
+            if (pos != std::string::npos) {
+                size_t bodyStart = pos + 4;
+                if (bodyStart < headersStr.size()) {
+                    if (!onChunk(headersStr.data() + bodyStart, headersStr.size() - bodyStart)) return false;
+                }
+                break;
+            }
         }
 
         while (true) {
