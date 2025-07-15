@@ -115,9 +115,7 @@ public:
                                 const std::string& contentType = "",
                                 const HttpHeaders& headers = HttpHeaders());
 
-    bool Download(const std::string& url,
-                  std::function<bool(const char* data, size_t size)> onChunk,
-                  const HttpHeaders& headers = HttpHeaders());
+    bool Download(const std::string& url, std::function<bool(const char* data, size_t size)> onChunk, const HttpHeaders& headers);
 
 private:
     std::string buildHttpRequest(const std::string& method, const UrlInfo& urlInfo,
