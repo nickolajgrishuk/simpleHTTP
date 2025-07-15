@@ -24,7 +24,6 @@ void HttpHeaders::clear() {
     headers.clear();
 }
 
-// HttpResponse implementation
 HttpResponse::HttpResponse() : contentLength(0), httpCode(0) {}
 
 void HttpResponse::clear() {
@@ -39,7 +38,6 @@ void HttpResponse::clear() {
     protocol.clear();
 }
 
-// UrlInfo implementation
 UrlInfo::UrlInfo() : port(80) {}
 
 UrlInfo UrlInfo::parseUrl(const std::string& url) {
@@ -158,6 +156,39 @@ HttpResponse HttpClient::Delete(const std::string& url, const std::string& paylo
     return executeRequest("DELETE", url, payload, contentType, headers);
 }
 
+bool HttpClient::Download(const std::string& url, std::function<bool(const char* data, size_t size)> onChunk, const HttpHeaders& headers) {
+    try {
+        UrlInfo urlInfo = UrlInfo::parseUrl(url);
+        socket.reset(new Socket());
+        if (!socket->connect(urlInfo.host, urlInfo.port)) return false;
+
+        std::string request = buildHttpRequest("GET", urlInfo, "", "", headers);
+        if (!socket->send(request)) return false;
+
+        std::string headersStr;
+        while (true) {
+            std::string chunk = socket->receiveChunk(1);
+            if (chunk.empty()) return false;
+            headersStr += chunk;
+            if (headersStr.find("\r\n\r\n") != std::string::npos) break;
+        }
+        size_t bodyStart = headersStr.find("\r\n\r\n") + 4;
+
+        if (bodyStart < headersStr.size()) {
+            if (!onChunk(headersStr.data() + bodyStart, headersStr.size() - bodyStart)) return false;
+        }
+
+        while (true) {
+            std::string chunk = socket->receiveChunk();
+            if (chunk.empty()) break;
+            if (!onChunk(chunk.data(), chunk.size())) return false;
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 void HttpClient::setTimeout(const int& seconds) {
     timeoutSeconds = seconds;
 }
@@ -252,7 +283,6 @@ std::string HttpClient::buildHttpRequest(const std::string& method, const UrlInf
     return request.str();
 }
 
-// Декодирование chunked-ответа
 static std::string decodeChunkedBody(const std::string& chunked) {
     std::istringstream stream(chunked);
     std::string decoded;
@@ -267,9 +297,8 @@ static std::string decodeChunkedBody(const std::string& chunked) {
         std::string chunk(chunkSize, '\0');
         stream.read(&chunk[0], chunkSize);
         decoded += chunk;
-        // Пропустить \r\n после чанка
-        stream.get(); // \r
-        stream.get(); // \n
+        stream.get();
+        stream.get();
     }
     return decoded;
 }
@@ -341,14 +370,12 @@ HttpResponse HttpClient::parseHttpResponse(const std::string& rawResponse) {
         }
     }
 
-    // Обработка тела ответа
     if (isChunked) {
         response.body = decodeChunkedBody(response.body);
         response.contentLength = response.body.size();
     } else if (contentLength > 0 && response.body.size() > contentLength) {
         response.body = response.body.substr(0, contentLength);
     }
-    // Если нет Content-Length и не chunked, просто возвращаем всё, что есть
 
     return response;
 }
